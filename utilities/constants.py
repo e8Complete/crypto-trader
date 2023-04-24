@@ -1,8 +1,10 @@
+#!/usr/bin/env python3.5
+
 import os
 from binance.client import Client
 
 class Constants():
-    PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
     HOLD_SIGNAL = "hold"
     BUY_SIGNAL = "buy"
@@ -35,6 +37,14 @@ class Constants():
                                    ["1 Dec, 2017", "1 Jan, 2018"], #  klines for the last month of 2017
                                    '1 Jan, 2017', # Since NEOBTC was listed
                                    ]
-    
+    DEFAULT_PERIOD_LENGTH = 14
+    DEFAULT_ORDERBOOK_DEPTH = 5
     RSI_SELL_THRESHOLD = 70
     RSI_BUY_THRESHOLD = 30
+
+    DEFAULT_TWEET_COUNT = 100
+
+    SYMBOL_TOPICS = {
+        "BTCUSDT": ["BTC", "Bitcoin", "Crypto", "Crypto currency"]
+        # TODO: Add more topics for each symbol here
+    }

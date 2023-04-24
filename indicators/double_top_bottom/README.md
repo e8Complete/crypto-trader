@@ -1,0 +1,2 @@
+# Double Top/Bottom
+This pattern consists of two peaks/bottoms at approximately the same level. It signals a reversal from an uptrend/downtrend to a downtrend/uptrend when prices break below/above the support/resistance level that connects the lows/highs.

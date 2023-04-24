@@ -1,0 +1,3 @@
+# Average Directional Index (ADX)
+
+This indicator measures the strength and direction of a price trend by calculating the difference between two directional indicators: +DI which shows positive price movement; -DI which shows negative price movement . The ADX line is derived from these two indicators . A high ADX value indicates a strong trend (either up or down), while a low ADX value indicates a weak or sideways trend.

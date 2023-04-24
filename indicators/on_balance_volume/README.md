@@ -1,0 +1,2 @@
+# On-Balance Volume (OBV)
+This indicator measures the cumulative trading volume of an asset by adding volume on days when prices close higher than their previous close, and subtracting volume on days when prices close lower than their previous close . It shows the buying and selling pressure behind price movements. A rising OBV line indicates bullish accumulation (possible buy signal), while a falling OBV line indicates bearish distribution (possible sell signal).
