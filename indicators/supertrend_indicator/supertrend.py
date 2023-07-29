@@ -4,9 +4,9 @@ import os
 import argparse
 import time
 from ta.volatility import supertrend
-from utilities.constants import Constants
-from utilities.utils import get_timestamp
-from utilities.logger import setup_logger
+from scripts.constants import Constants
+from scripts.utils import get_timestamp
+from scripts.logger import setup_logger
 
 
 class Supertrend:

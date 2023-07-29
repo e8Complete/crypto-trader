@@ -2,8 +2,8 @@
 
 import os
 import logging
-from utilities.constants import Constants
-from utilities.utils import get_timestamp
+from scripts.constants import Constants
+from scripts.utils import get_timestamp
 
 
 LOG_FORMAT = logging.Formatter('%(asctime)s [%(filename)s:%(lineno)d] \t%(levelname)-8s \t%(message)s', datefmt='%Y-%m-%d-%H:%M:%S')

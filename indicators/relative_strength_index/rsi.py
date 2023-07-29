@@ -4,9 +4,9 @@ import os
 import time
 import argparse
 import numpy as np
-from utilities.constants import Constants
-from utilities.utils import get_timestamp
-from utilities.logger import setup_logger
+from scripts.constants import Constants
+from scripts.utils import get_timestamp
+from scripts.logger import setup_logger
 # Could also just use talib library
 # https://hexdocs.pm/talib/TAlib.Indicators.RSI.html#content
 # import talib

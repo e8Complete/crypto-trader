@@ -5,9 +5,9 @@ import time
 import argparse
 import pandas as pd
 import numpy as np
-from utilities.constants import Constants
-from utilities.logger import setup_logger
-from utilities.utils import get_timestamp
+from scripts.constants import Constants
+from scripts.logger import setup_logger
+from scripts.utils import get_timestamp
 from binance.client import Client
 from indicators.average_directional_index.adx import ADX
 from indicators.bollinger_bands.boll_bands import BollingerBands
@@ -24,7 +24,10 @@ from indicators.stochastic_oscillator.stoc_osc import StochasticOscillator
 from indicators.supertrend_indicator.supertrend import Supertrend
 from indicators.triangle.triangle import Triangle
 from indicators.volume_weighted_average_price.vwap import VWAP
+from sentiment_analysis.google_trends.google_trends import GoogleTrends
+from sentiment_analysis.reddit.reddit import Reddit
 from sentiment_analysis.twitter.twitter import Twitter
+
 
 class TradingAPI(Client):
     def __init__(self, args, timestamp=get_timestamp()):
@@ -78,12 +81,20 @@ class TradingAPI(Client):
         self.triangle_api = Triangle(is_test=self.testnet, timestamp=self.timestamp)
         self.vwap_api = VWAP(is_test=self.testnet, timestamp=self.timestamp)
         # Sentiment APIs
+        self.google_trends_api = GoogleTrends(is_test=self.testnet, timestamp=self.timestamp)
         try:
             self.twitter_api = Twitter(is_test=self.testnet, timestamp=self.timestamp)
             self.use_twitter = True
         except Exception as e:
-            self.logger.info("Failed to initialize Twitter API: {}".format(e))
+            self.logger.error("Failed to initialize Twitter API: {}".format(e))
             self.use_twitter = False
+        try:
+            self.reddit_api = Reddit(is_test=self.testnet, timestamp=self.timestamp)
+            self.use_reddit = True
+        except Exception as e:
+            self.logger.error("Failed to initialize Reddit API: {}".format(e))
+            self.use_reddit = False
+
 
     def run(self):
         init_time = time.perf_counter()
@@ -242,14 +253,14 @@ class TradingAPI(Client):
 
             # Elliott Wave Theory
             ewt_pattern = self.ewt_api.identify_wave_patterns(args.closing_prices)
-            sma1 = self.ewt_api.get_moving_average(20)  # 20 day moving average
-            sma2 = self.ewt_api.get_moving_average(50)  # 50 day moving average
+            sma1 = self.ewt_api.get_moving_average(20)  # 20 day moving average # TODO: Set dynamically
+            sma2 = self.ewt_api.get_moving_average(50)  # 50 day moving average # TODO: Set dynamically
             ewt_signal = self.ewt_api.decide_buy_sell_hold_signals(args.closing_prices, ewt_pattern, rsi, sma1, sma2)
             self.data[sym]['ewt_pattern'] = ewt_pattern
             self.data[sym]['ewt_sma1'] = sma1
-            self.data[sym]['ewt_timeperiod1'] = 20
+            self.data[sym]['ewt_timeperiod1'] = 20  # TODO: Set dynamically
             self.data[sym]['ewt_sma2'] = sma2
-            self.data[sym]['ewt_timeperiod2'] = 50
+            self.data[sym]['ewt_timeperiod2'] = 50  # TODO: Set dynamically
             self.data[sym]['ewt_signal'] = ewt_signal
 
             # Order Book Analysis
@@ -270,8 +281,29 @@ class TradingAPI(Client):
                     self.data[sym]['twitter_{}'.format(topic)] = avg_sentiment
             
             # Get Reddit sentiment
+            if self.use_reddit:
+                subreddits = self.reddit_api.fetch_subreddits(sym, args.tweet_count) # TODO: Need to set counter or to-from-time
+                avg_sentiment = self.reddit_api.get_sentiment_scores(subreddits)
+                self.data[sym]['reddit_{}'.format(sym)] = avg_sentiment
+                for topic in Constants.SYMBOL_TOPICS[sym]:
+                    subreddits = self.reddit_api.fetch_subreddits(topic, args.tweet_count) # TODO: Need to set counter or to-from-time
+                    avg_sentiment = self.reddit_api.get_sentiment_scores(subreddits)
+                    self.data[sym]['reddit_{}'.format(topic)] = avg_sentiment
 
-            # Get Google Trends
+            # Google Trends
+            # TODO: set dates properly
+            start_date = '2017-01-01'
+            end_date = '2022-01-01'
+            google_trends_data = self.google_trends_api.fetch_google_trends(sym, start_date, end_date)
+            # TODO: Wite all data to logs
+            google_trends_signal = self.google_trends_api.decide_buy_sell_hold_signals(sym, google_trends_data)
+            self.data[sym]['google_trends_{}_signal'.format(sym)] = google_trends_signal
+            for topic in Constants.SYMBOL_TOPICS[sym]:
+                google_trends_data = self.google_trends_api.fetch_google_trends(topic, start_date, end_date)
+                # TODO: Wite all data to logs
+                google_trends_signal = self.google_trends_api.decide_buy_sell_hold_signals(topic, google_trends_data)
+                self.data[sym]['google_trends_{}_signal'.format(topic)] = google_trends_signal
+
             
             # Get Bing's latest market news signal
 

@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import talib
-from utilities.constants import Constants
-from utilities.utils import get_timestamp
-from utilities.logger import setup_logger
+from scripts.constants import Constants
+from scripts.utils import get_timestamp
+from scripts.logger import setup_logger
 
 
 class MACD:

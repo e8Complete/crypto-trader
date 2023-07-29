@@ -5,9 +5,9 @@ import argparse
 import time
 import tweepy
 from textblob import TextBlob
-from utilities.constants import Constants
-from utilities.utils import get_timestamp
-from utilities.logger import setup_logger
+from scripts.constants import Constants
+from scripts.utils import get_timestamp
+from scripts.logger import setup_logger
 
 
 class Twitter:
@@ -45,7 +45,7 @@ class Twitter:
         public_tweets = self.api.search(topic, count=count)
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
-        self.logger.info("Fetched {} {} tweets  in %.2f seconds".format(count, topic, elapsed_time))
+        self.logger.info("Fetched {} {} tweets  in {:0.4f} seconds".format(count, topic, elapsed_time))
         return public_tweets
 
     def get_sentiment_scores(self, public_tweets):

@@ -31,13 +31,20 @@ Finally it uses GPT to evaluate the signals and perform a trading decision
 
 ## Requirements
 ### OpenAI
-OpenAI API_KEY
-OpenAI ORG_ID
+- OpenAI API_KEY
+- OpenAI ORG_ID
 ### Twitter API credentials
-consumer_key = 'YOUR_CONSUMER_KEY'
-consumer_secret = 'YOUR_CONSUMER_SECRET'
-access_token = 'YOUR_ACCESS_TOKEN'
-access_token_secret = 'YOUR_ACCESS_TOKEN_SECRET'
+- consumer_key = 'YOUR_CONSUMER_KEY'
+- consumer_secret = 'YOUR_CONSUMER_SECRET'
+- access_token = 'YOUR_ACCESS_TOKEN'
+- access_token_secret = 'YOUR_ACCESS_TOKEN_SECRET'
+### Reddit API credentials
+- reddit_client_id
+- reddit_client_secret
+- reddit_username
+- reddit_password
+- reddit_user_agent
+
 
 
 ```
@@ -51,12 +58,13 @@ https://python-binance.readthedocs.io/en/latest/
 
 
 
-How can i implement a python script that uses Twitter Sentiment Analysis to indicate as buy/sell/hold signal, using binance api
+How can i implement a python script that uses Google Trends to indicate as buy/sell/hold signal, using binance api
 
 
 # TODO:
 # fix arguments for each indicator
 # Add defaults to constants?
 # fix detail logging in all indicators
+# Make it possible to set all arguments for all APIs from main.py
 # Save data to csv file
 # Add posibility to plot all indicators (save plots to logs for each run)

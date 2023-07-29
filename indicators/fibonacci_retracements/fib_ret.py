@@ -5,9 +5,9 @@ import argparse
 import time
 import matplotlib.pyplot as plt
 from typing import List
-from utilities.constants import Constants
-from utilities.utils import get_timestamp
-from utilities.logger import setup_logger
+from scripts.constants import Constants
+from scripts.utils import get_timestamp
+from scripts.logger import setup_logger
 
 
 DEFAULT_FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
