@@ -12,3 +12,22 @@ For example, if you have daily closing prices for a specific symbol, you could c
 If yesterday's RSI value was above 70, it would indicate overbought conditions and a possible sell signal. If yesterday's RSI value was below 30, it would indicate oversold conditions and a possible buy signal. If yesterday's RSI value was between 30 and 70, there would be no clear buy or sell signal based on the RSI indicator alone.
 
 Of course, it's important to note that the RSI indicator is just one tool among many that traders use to analyze market trends and identify potential trade opportunities. It's always a good idea to use multiple indicators and analysis methods to make informed trading decisions.
+
+
+## Usage
+  
+Use the script from the command line as follows: 
+
+```bash
+python3 rsi.py -C "127.2, 126.5, 129.8, 133.5" -n 14
+```
+
+The above command assumes you provide closing prices as a string `-C` argument and that it is followed by a comma-separated list of closing prices. You can define the period length using the `-n` argument followed by an integer.
+
+Running the script without any arguments defaults to a period length of 14 (RSI typically suggests this period length) and generates RSI values for the sample data provided. 
+
+Alternatively, use the `--use_mock` flag to generate a dataset of random prices for testing.
+
+```sh
+python rsi.py --use_mock
+```

@@ -4,17 +4,15 @@ import os
 import time
 import argparse
 import numpy as np
+import random
+from indicators.base_indicator import BaseIndicator
 from scripts.constants import Constants
 from scripts.utils import get_timestamp
 from scripts.logger import setup_logger
-# Could also just use talib library
-# https://hexdocs.pm/talib/TAlib.Indicators.RSI.html#content
-# import talib
-# rsi = talib.RSI(df['close'].values, timeperiod=14)
-# last_rsi = rsi[-1]
 
-class RSI():
-    def __init__(self, is_test=True, timestamp=get_timestamp()):
+class RSI(BaseIndicator):
+    def __init__(self, period_length=Constants.DEFAULT_PERIOD_LENGTH, is_test=True,
+                 timestamp=get_timestamp(precision="day", separator="-")):
         log_name = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
         self.logger = setup_logger(name=log_name,
                                    is_test=is_test,
@@ -22,22 +20,24 @@ class RSI():
                                    )
         self.logger.debug("Timestamp: {}".format(timestamp))
         self.logger.debug("Is test: {}".format(is_test))
+        self.period_length = period_length
 
-    def calculate_rsi(self, prices, period_length):
+    def calculate(self, **data):
         start_time = time.perf_counter()
+        closing_prices = data.get("closing_prices", "")
         self.logger.info("Calculating RSI...")
-        self.logger.debug("Prices: {}}".format(", ".join(prices)))
-        self.logger.debug("Period Length: {}".format(period_length))
+        self.logger.debug("Closing prices: {}".format(", ".join(map(str, closing_prices))))
+        self.logger.debug("Period Length: {}".format(self.period_length))
 
-        deltas = np.diff(prices)
-        seed = deltas[:period_length + 1]
-        up = seed[seed >= 0].sum() / period_length
-        down = -seed[seed < 0].sum() / period_length
+        deltas = np.diff(closing_prices)
+        seed = deltas[:self.period_length + 1]
+        up = seed[seed >= 0].sum() / self.period_length
+        down = -seed[seed < 0].sum() / self.period_length
         rs = up / down
-        rsi = np.zeros_like(prices)
-        rsi[:period_length] = 100. - 100. / (1. + rs)
+        rsi = np.zeros_like(closing_prices)
+        rsi[:self.period_length] = 100. - 100. / (1. + rs)
 
-        for i in range(period_length, len(prices)):
+        for i in range(self.period_length, len(closing_prices)):
             delta = deltas[i - 1]  # cause the diff is 1 shorter
             if delta > 0:
                 upval = delta
@@ -46,8 +46,8 @@ class RSI():
                 upval = 0.
                 downval = -delta
 
-            up = (up * (period_length - 1) + upval) / period_length
-            down = (down * (period_length - 1) + downval) / period_length
+            up = (up * (self.period_length - 1) + upval) / self.period_length
+            down = (down * (self.period_length - 1) + downval) / self.period_length
 
             rs = up / down
             rsi[i] = 100. - 100. / (1. + rs)
@@ -58,7 +58,12 @@ class RSI():
         
         return rsi
 
-    def decide_buy_sell_hold_signals(self, rsi):
+    def decide_signal(self, **data):
+        rsi = data.get("rsi", "")
+        if rsi is None or len(rsi) < 2:
+            self.logger.error("Missing required data. Cannot decide signal.")
+            return Constants.UNKNOWN_SIGNAL
+
         self.logger.info("Deciding RSI buy/sell/hold signal...")
         signals = []
         for i in range(len(rsi)):
@@ -80,14 +85,24 @@ class RSI():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Use RSI to determine buy or sell signals")
-    parser.add_argument('-p', '--prices', type=list,
-                        help='List of prices',
-                        required=True)
+    parser.add_argument('-C', '--closing_prices', type=str,
+                        help='Comma-separated list of closing prices',
+                        required=False)
+    parser.add_argument('--use_mock', action='store_true', default=False,
+                        help='Add this argument to run mock example',
+                        required=False)
     parser.add_argument('-n', '--period_length', type=int, default=Constants.DEFAULT_PERIOD_LENGTH,
                         help='Length of period. Defaults to {} if not provided.'.format(Constants.DEFAULT_PERIOD_LENGTH),
                         required=False)
     args = parser.parse_args()
 
-    rsi_api = RSI()
-    rsi = rsi_api.calculate_rsi(args.prices, args.period_length)
-    signals = rsi_api.decide_buy_sell_hold_signals(rsi)
+    if args.use_mock:
+        closing_prices = [random.uniform(100, 200) for _ in range(100)]
+    else:
+        if not args.closing_prices:
+            raise ValueError("Missing required argument: prices")
+        closing_prices = [float(price) for price in args.closing_prices.split(',')]
+
+    rsi_api = RSI(period_length=args.period_length)
+    rsi = rsi_api.calculate(closing_prices=closing_prices)
+    signals = rsi_api.decide_signal(rsi=rsi)

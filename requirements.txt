@@ -1,2 +1,8 @@
 openai
 praw
+python-binance
+TA-Lib
+PyYAML
+pandas
+numpy
+matplotlib

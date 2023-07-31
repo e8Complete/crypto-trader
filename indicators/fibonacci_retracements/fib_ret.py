@@ -3,8 +3,8 @@
 import os
 import argparse
 import time
-import matplotlib.pyplot as plt
-from typing import List
+import random
+from indicators.base_indicator import BaseIndicator
 from scripts.constants import Constants
 from scripts.utils import get_timestamp
 from scripts.logger import setup_logger
@@ -12,8 +12,10 @@ from scripts.logger import setup_logger
 
 DEFAULT_FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
 
-class FibonacciRetracements:
-    def __init__(self, is_test=True, timestamp=get_timestamp()):
+
+class FibonacciRetracements(BaseIndicator):
+    def __init__(self, fib_levels=DEFAULT_FIB_LEVELS, is_test=True,
+                 timestamp=get_timestamp(precision="day", separator="-")):
         log_name = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
         self.logger = setup_logger(name=log_name,
                                    is_test=is_test,
@@ -21,22 +23,18 @@ class FibonacciRetracements:
                                    )
         self.logger.debug("Timestamp: {}".format(timestamp))
         self.logger.debug("Is test: {}".format(is_test))
-        if args.fib_levels:
-            self.fib_levels = args.fib_levels.split(',')
-        else:
-            self.fib_levels = DEFAULT_FIB_LEVELS
+        self.fib_levels = [float(level) for level in fib_levels] if fib_levels else DEFAULT_FIB_LEVELS
     
-    def calculate_fib_levels(self, prices: List[float]) -> List[float]:
-        """
-        Calculate the Fibonacci retracement levels for the given prices.
-        Args:
-        - prices (List[float]): A list of prices.
-        Returns:
-        - List[float]: A list of Fibonacci retracement levels.
-        """
+    def calculate(self, **data):
+        high_prices = data.get("high_prices", [])
+        low_prices = data.get("low_prices", [])
+        prices = high_prices + low_prices
+        if not prices:
+            self.logger.error("No prices. No Fibonacci retracement")
+            return []
         start_time = time.perf_counter()
         self.logger.info("Calculating Fibonacci retracement levels...")
-        self.logger.info("Fibonacci levels: {}".format(", ".join(self.fib_levels)))
+        self.logger.info("Fibonacci levels: {}".format(", ".join(map(str, self.fib_levels))))
 
         max_price = max(prices)
         self.logger.info("Max Price: {}".format(max_price))
@@ -45,7 +43,7 @@ class FibonacciRetracements:
         diff = max_price - min_price
         self.logger.info("Diff: {}".format(diff))
         fib_levels_prices = [min_price + level * diff for level in self.fib_levels]
-        self.logger.info("Fibonacci Level Prices: {}".format(", ".join(fib_levels_prices)))
+        self.logger.info("Fibonacci Level Prices: {}".format(", ".join(map(str, fib_levels_prices))))
 
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
@@ -53,34 +51,26 @@ class FibonacciRetracements:
 
         return fib_levels_prices
     
-    def plot_fib_levels(self, prices: List[float], symbol: str) -> None:
-        """
-        Plot the Fibonacci retracement levels for the given prices using matplotlib.
-        Args:
-        - prices (List[float]): A list of prices.
-        - symbol (str): The symbol being plotted.
-        """
-        fib_levels_prices = self.calculate_fib_levels(prices)
-        fig, ax = plt.subplots()
-        ax.plot(prices, label="Price")
-        for i in range(1, len(self.fib_levels)):
-            ax.axhline(fib_levels_prices[i], linestyle='--', color='grey', alpha=0.5, label=f"{int(self.fib_levels[i] * 100)}%")
-        ax.legend(loc='upper left')
-        ax.set_xlabel("Time")
-        ax.set_ylabel("Price")
-        ax.set_title(f"Fibonacci Retracement Levels for {symbol}")
-        plt.show()
-
-    def decide_buy_sell_hold_signals(self, prices: List[float], fib_levels, symbol_df):
+    def decide_signal(self, **data):
+        fib_levels = data.get("FibonacciRetracements", {}).get("calculations", [])
+        closing_prices = data.get("closing_prices", [])
+        
+        if not fib_levels or not closing_prices:
+            self.logger.error("Missing required data. Cannot decide signal.")
+            return None
+        
         self.logger.info("Deciding Fibonacci Retracements buy/sell/hold signal...")
-        last_price = float(symbol_df['close'].iloc[-1])
+        last_price = closing_prices[-1]
         self.logger.info("Last Price: {}".format(last_price))
-        fib38 = fib_levels['38.2']
+
+        fib_levels_dict = dict(zip(self.fib_levels, fib_levels))
+
+        fib38 = fib_levels_dict.get(0.382)
         self.logger.info("fib38: {}".format(fib38))
-        fib50 = fib_levels['50.0']  # TODO: This is not in use? Check if this is right
-        self.logger.info("fib50: {}".format(fib50))
-        fib61 = fib_levels['61.8']
+        #   fib50 = fib_levels_dict.get(50.0)
+        fib61 = fib_levels_dict.get(0.618)
         self.logger.info("fib61: {}".format(fib61))
+
         if last_price <= fib38:
             signal = Constants.BUY_SIGNAL
         elif last_price >= fib61:
@@ -94,18 +84,38 @@ class FibonacciRetracements:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Use Fibonacci retracement levels to determine buy or sell signals")
-    parser.add_argument('-p', '--prices', type=list,
-                        help='List of prices',
-                        required=True)
-    parser.add_argument('-l', '--fib_levels',
-                        help='Comma seperated list of Fibonacci retracement levels,',
+    parser.add_argument('-C', '--closing_prices', type=str,
+                        help='Comma-separated list of closing prices',
                         required=False)
-    parser.add_argument('-s', '--symbol',
-                        help='The symbol being plotted.',
+    parser.add_argument('-H', '--high_prices', type=str,
+                        help='Comma-separated list of highest prices',
+                        required=False)
+    parser.add_argument('-L', '--low_prices', type=str,
+                        help='Comma-separated list of lowest prices',
+                        required=False)
+    parser.add_argument('-l', '--fib_levels',
+                        help='Comma-separated list of Fibonacci retracement levels',
+                        required=False)
+    parser.add_argument('--use_mock', action='store_true', default=False,
+                        help='Add this argument to run mock example',
                         required=False)
     args = parser.parse_args()
 
-    fr_api = FibonacciRetracements(args)
-    fr_levels = fr_api.calculate_fib_levels(args.prices)
-    fr_api.plot_fib_levels(args.prices, args.symbol)
-    signals = fr_api.decide_buy_sell_hold_signals(args.prices, args.fib_levels, args.symbol)
+    if args.use_mock:
+        high_prices = [random.uniform(150, 200) for _ in range(100)]
+        low_prices = [random.uniform(100, 149) for _ in range(100)]
+        closing_prices = [random.uniform(low, high) for low, high in zip(low_prices, high_prices)]
+    else:
+        if not args.closing_prices or not args.high_prices or not args.low_prices:
+            raise ValueError("Missing required arguments: closing_prices, high_prices, low_prices")
+        high_prices = [float(price) for price in args.high_prices.split(',')]
+        low_prices = [float(price) for price in args.low_prices.split(',')]
+        closing_prices = [float(price) for price in args.closing_prices.split(',')]
+    
+    if args.fib_levels:
+        fib_levels = args.fib_levels.split(',')
+    else:
+        fib_levels = DEFAULT_FIB_LEVELS
+    fr_api = FibonacciRetracements(fib_levels=args.fib_levels)
+    fr_levels = fr_api.calculate(high_prices=high_prices, low_prices=low_prices)
+    signal = fr_api.decide_signal(closing_prices=closing_prices, FibonacciRetracements={"calculations": fr_levels})

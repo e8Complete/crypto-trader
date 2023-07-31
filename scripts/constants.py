@@ -9,6 +9,7 @@ class Constants():
     HOLD_SIGNAL = "hold"
     BUY_SIGNAL = "buy"
     SELL_SIGNAL = "sell"
+    UNKNOWN_SIGNAL = "unknown"
 
     DEFAULT_SYMBOLS = ['BTCUSDT']
 

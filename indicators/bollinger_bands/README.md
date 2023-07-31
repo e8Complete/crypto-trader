@@ -11,3 +11,22 @@ To use Bollinger Bands to generate buy/sell/hold signals, you can use the follow
 3. Calculate the upper band and lower band by adding/subtracting two standard deviations from the moving average.
 4. Determine the current position of the price relative to the bands.
 5. Generate signals based on the position of the price relative to the bands.
+
+
+## Usage
+
+```sh
+python3 boll_bands.py -C [closing_prices] -w [window_size] -n [num_std] [--use_mock]
+```
+
+Alternatively, use the `--use_mock` flag to generate a dataset of random prices for testing.
+
+```sh
+python boll_bands.py --use_mock
+```
+
+Where, 
+- closing_prices: A comma-separated list of closing prices. e.g., `100.21,101.31,99.45,98.21,...`
+- window_size: An integer to define the window size for rolling mean. Default is `20`.
+- num_std: A number to specify the standard deviation. Default is `2`.
+- use_mock: An optional argument, if specified program will run a mock example.

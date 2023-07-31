@@ -1,0 +1,86 @@
+symbols: ["BTCUSDT", "ETHUSDT"]
+kline_interval: "5m"  # For more info, see: https://python-binance.readthedocs.io/en/latest/constants.html',
+kline_start: "1 day ago UTC"  # Set the kline start string. See choices for more examples
+orderbook_depth: 10
+testnet: true  # The API will run on the testnet by default. Set to false to run on the real network
+indicators:  # Names of indicators should match the name of the respective class
+  - name: "ADX"
+    enable: true
+    parameters:
+      timeperiod: 14
+  - name: "BollingerBands"
+    enable: true
+    parameters:
+      window_size: # You need to specify these based on your data
+      num_std: # You need to specify these based on your data
+  - name: "Triangle"
+    enable: true
+    parameters:
+      interval: "1d"
+      k_period: 14
+      d_period: 3
+      threshold: 20
+  - name: "EWT"
+    enable: true
+    parameters:
+      period_length: 14
+      timeperiod1: 20
+      timeperiod2: 50
+  - name: "FibonacciRetracements"
+    enable: true
+    parameters:
+      fib_levels: # You need to specify these based on your data
+  - name: "HeadAndShoulders"
+    enable: true
+  - name: "IchimokuCloud"
+    enable: true
+    parameters:
+      lookback: 10
+      multiplier: 3
+  - name: "MACD"
+    enable: true
+  - name: "OBV"
+    enable: true
+    parameters:
+      timeperiod: 14
+  - name: "OrderBookAnalysis"
+    enable: true
+    parameters:
+      depth: 10 # You may want to adjust this
+  - name: "RSI"
+    enable: true
+    parameters:
+      period_length: 14
+  - name: "StochasticOscillator"
+    enable: true
+    parameters:
+      interval: "1d"
+      k_period: 14
+      d_period: 3
+      threshold: 20
+  - name: "SupertrendIndicator"
+    enable: true
+    parameters:
+      lookback: 10
+      multiplier: 3
+  - name: "Triangle"
+    enable: true
+    parameters:
+      interval: "1d"
+      k_period: 14
+      d_period: 3
+      threshold: 20
+  - name: "VWAP"
+    enable: true
+    parameters:
+     lookback: 10
+      multiplier: 3
+sentiment_analyzers:
+  - name: GoogleTrends
+    enable: true
+  - name: Twitter
+    enable: true
+    parameters:
+      tweet_count: 20
+  - name: Reddit
+    enable: true

@@ -3,13 +3,17 @@
 import os
 import argparse
 import time
+import random
+import numpy as np
+from indicators.base_indicator import BaseIndicator
 from scripts.constants import Constants
 from scripts.utils import get_timestamp
 from scripts.logger import setup_logger
 
 
-class VWAP:
-    def __init__(self, is_test=True, timestamp=get_timestamp()):
+class VWAP(BaseIndicator):
+    def __init__(self, is_test=True,
+                 timestamp=get_timestamp(precision="day", separator="-")):
         log_name = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
         self.logger = setup_logger(name=log_name,
                                    is_test=is_test,
@@ -18,11 +22,10 @@ class VWAP:
         self.logger.debug("Timestamp: {}".format(timestamp))
         self.logger.debug("Is test: {}".format(is_test))
 
-    def calculate_vwap(self, volumes, closing_prices):
+    def calculate(self, **data):
+        volumes = np.array(data.get('volumes'))
+        closing_prices = np.array(data.get('closing_prices'))
         start_time = time.perf_counter()
-        self.logger.info("Volumes: {}".format(", ".join(volumes)))
-        self.logger.info("Closing Prices: {}".format(", ".join(closing_prices)))
-
         total_volume = sum(volumes)
         self.logger.info("Total Volume: {}".format(total_volume))
         total_value = (closing_prices * volumes).sum()
@@ -36,7 +39,13 @@ class VWAP:
         
         return vwap
 
-    def decide_buy_sell_hold_signals(self, vwap, current_price):
+    def decide_signal(self, **data):
+        vwap = data.get("VWAP", {}).get("calculations", {})
+        current_price = data.get("current_price", "")
+        if not vwap or not current_price:
+            self.logger.error("Missing required data. Cannot decide signal.")
+            return Constants.UNKNOWN_SIGNAL
+
         self.logger.info("Deciding Volume Weighted Average Price (VWAP) buy/sell/hold signal...")
         if current_price > vwap:
             signal = Constants.BUY_SIGNAL
@@ -51,21 +60,26 @@ class VWAP:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Use Volume Weighted Average Price (VWAP) to determine buy or sell signals")
-    parser.add_argument('-H', '--high', type=float,
-                        help='Highest price',
-                        required=True)
-    parser.add_argument('-L', '--low', type=float,
-                        help='Lowest price',
-                        required=True)
-    parser.add_argument('-C', '--closing_price', type=float,
-                        help='Closing price',
-                        required=True)
-    parser.add_argument("--lookback", type=int, default=10,
-                        help="Lookback window for the Supertrend indicator. It is the number of periods used to calculate the average true range (ATR) that is used in the Supertrend calculation.")
-    parser.add_argument('--multiplier', type=int, default=3,
-                        help='Multiplier factor for the Supertrend indicator. It is the factor by which the ATR is multiplied to calculate the upper and lower bands of the Supertrend line.')
+    parser.add_argument('-C', '--closing_prices', type=str,
+                        help='Comma-separated list of closing prices',
+                        required=False)
+    parser.add_argument('-V', '--volumes', type=str,
+                        help='Comma-separated list of volumes',
+                        required=False)
+    parser.add_argument('--use_mock', action='store_true', default=False,
+                        help='Add this argument to run mock example',
+                        required=False)
     args = parser.parse_args()
 
+    if args.use_mock:
+        volumes = [random.uniform(100, 200) for _ in range(100)]
+        closing_prices = [random.uniform(100, 200) for _ in range(100)]
+    else:
+        if not args.volumes or not args.closing_prices:
+            raise ValueError("Missing required arguments: volumes, closing_prices")
+        volumes = [float(volume) for volume in args.volumes.split(',')]
+        closing_prices = [float(price) for price in args.closing_prices.split(',')]
+
     vwap_api = VWAP()
-    vwap = vwap_api.calculate_vwap(volumes, closing_prices)
-    signal = vwap_api.decide_buy_sell_hold_signals(vwap, current_price)
+    vwap = vwap_api.calculate(volumes=volumes, closing_prices=closing_prices)
+    signal = vwap_api.decide_signal(VWAP={"calculations": vwap}, current_price=closing_prices[-1])

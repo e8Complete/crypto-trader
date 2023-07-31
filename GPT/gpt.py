@@ -31,6 +31,13 @@ def summarize_content(content):
     )
     return response.choices[0].text.strip()
 
+
+def make_trade_decision(data):
+    # 
+    pass
+
+
+
 def main():
     story_ids = get_top_stories()[:3]
 

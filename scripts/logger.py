@@ -18,7 +18,7 @@ def setup_logger(name, is_test=True, timestamp=get_timestamp(), level=logging.DE
     log_path = os.path.dirname(log_file)
     os.makedirs(log_path, exist_ok=True)
     logger = logging.getLogger(name)
-    fileHandler = logging.FileHandler(log_file, mode='w')
+    fileHandler = logging.FileHandler(log_file, mode='a')
     fileHandler.setFormatter(LOG_FORMAT)
     streamHandler = logging.StreamHandler()
     streamHandler.setFormatter(LOG_FORMAT)

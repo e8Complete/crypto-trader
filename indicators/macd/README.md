@@ -10,7 +10,33 @@ A decision to buy or sell can be made when the MACD line crosses above or below 
 However, it is important to note that no single indicator or signal is foolproof, and traders should use multiple indicators and technical analysis tools to make informed trading decisions. It is also important to consider other factors such as market conditions, news events, and risk management strategies.
 
 
-Related sources:
-https://www.investopedia.com/terms/m/macd.asp
-https://www.youtube.com/watch?v=W78Xg_pnJ1A
-https://www.youtube.com/watch?v=rf_EQvubKlk
+Related sources: <br/>
+https://www.investopedia.com/terms/m/macd.asp <br/>
+https://www.youtube.com/watch?v=W78Xg_pnJ1A <br/>
+https://www.youtube.com/watch?v=rf_EQvubKlk <br/>
+
+
+
+## Usage
+
+Run the script from the command line using the following command:
+
+```bash
+python macd.py --closing_prices 200,210,200,230,240
+```
+
+or run a mock example:
+
+```bash
+python macd.py --use_mock
+```
+
+### Arguments
+
+The script supports the following arguments:
+
+- `-C` or `--closing_prices`: A comma-separated list of closing prices. Required `False`.
+- `-f` or `--fast_period`: Set the fast period for MACD calculation. The default is `12`. Required `False`.
+- `-sl` or `--slow_period`: Set the slow period for MACD calculation. The default is `26`. Required `False`.
+- `-sig` or `--signal_period`: Set the signal period for MACD calculation. The default is `9`. Required `False`.
+- `--use_mock`: Add this argument to run a mock example. The default is `False`. Required `False`.
