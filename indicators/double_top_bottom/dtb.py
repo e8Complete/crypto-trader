@@ -100,21 +100,27 @@ class DoubleTopBottom(BaseIndicator):
         
         return double_bottom
 
-    def decide_signal(self, **data):
-        double_top = data.get('double_top')
-        double_bottom = data.get('double_bottom')
-        if not double_top or not double_bottom:
-            self.logger.error("Missing required data. Cannot decide signal.")
+    def decide_signal(self, **cv_data): # Renamed data to cv_data for clarity
+        double_top = cv_data.get('double_top')
+        double_bottom = cv_data.get('double_bottom')
+
+        # Check if results are None (e.g. if calculate could return None for some error, though current one doesn't)
+        if double_top is None or double_bottom is None:
+            self.logger.error("Missing calculation result for double_top or double_bottom.")
             return Constants.UNKNOWN_SIGNAL
-        
-        self.logger.info("Deciding Double Top/Bottom buy/sell/hold signal...")
-        if double_bottom != -1:
+
+        # Core logic based on -1 indicating no pattern found:
+        signal = Constants.HOLD_SIGNAL # Default to HOLD
+        if double_bottom != -1: # Double bottom detected
+            self.logger.info(f"Double Bottom pattern detected at index {double_bottom}.")
             signal = Constants.BUY_SIGNAL
-        elif double_top != -1:
+        elif double_top != -1: # Double top detected (and no double bottom)
+            self.logger.info(f"Double Top pattern detected at index {double_top}.")
             signal = Constants.SELL_SIGNAL
-        else:
-            signal = Constants.HOLD_SIGNAL
-        
+        else: # No pattern detected (both are -1)
+            self.logger.info("No Double Top or Double Bottom pattern detected.")
+            # Signal remains HOLD as per default
+
         self.logger.info("Signal detected: {}".format(signal))
         return signal
 

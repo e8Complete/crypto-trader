@@ -51,21 +51,30 @@ class ADX(BaseIndicator):
         return adx
 
     def decide_signal(self, **data):
-        adx = data.get("adx", "")
-        if adx is None or len(adx) < 2:
-            self.logger.error("Missing required data. Cannot decide signal.")
+        # Retrieve the ADX series passed by main.py under the "calculations" key
+        adx_series = data.get("calculations") 
+        
+        # Check if adx_series is None or not long enough
+        if adx_series is None or len(adx_series) < 2:
+            self.logger.error("Missing required ADX calculation data or data too short. Cannot decide signal.")
             return Constants.UNKNOWN_SIGNAL
 
         self.logger.info("Deciding ADX buy/sell/hold signal...")
-        last_adx = adx[-1]
+        last_adx = adx_series[-1]
+        prev_adx = adx_series[-2] # Store previous ADX value for clarity
+
         if last_adx > 25:
-            if adx[-2] < 25:
+            # Condition for BUY: ADX crosses above 25
+            if prev_adx < 25:
                 signal = Constants.BUY_SIGNAL
-            elif adx[-2] < last_adx:
+            # Condition for HOLD (when ADX is above 25 and still rising)
+            elif prev_adx < last_adx: 
                 signal = Constants.HOLD_SIGNAL
+            # Condition for SELL (when ADX is above 25 but starts falling)
             else:
                 signal = Constants.SELL_SIGNAL
         else:
+            # If ADX is below 25, it's considered a weak or non-trending market
             signal = Constants.HOLD_SIGNAL
 
         self.logger.info(f"Signal detected: {signal}")

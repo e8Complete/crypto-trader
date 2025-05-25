@@ -26,58 +26,81 @@ class FibonacciRetracements(BaseIndicator):
         self.fib_levels = [float(level) for level in fib_levels] if fib_levels else DEFAULT_FIB_LEVELS
     
     def calculate(self, **data):
-        high_prices = data.get("high_prices", [])
-        low_prices = data.get("low_prices", [])
-        prices = high_prices + low_prices
-        if not prices:
-            self.logger.error("No prices. No Fibonacci retracement")
-            return []
+        high_prices_list = data.get("high_prices", [])
+        low_prices_list = data.get("low_prices", [])
+
+        if not high_prices_list or not low_prices_list:
+            self.logger.error("High or low prices are missing or empty. Cannot calculate Fibonacci levels.")
+            return [] # Return empty list, matching original error behavior
+
         start_time = time.perf_counter()
         self.logger.info("Calculating Fibonacci retracement levels...")
         self.logger.info("Fibonacci levels: {}".format(", ".join(map(str, self.fib_levels))))
 
-        max_price = max(prices)
-        self.logger.info("Max Price: {}".format(max_price))
-        min_price = min(prices)
-        self.logger.info("Min Price: {}".format(min_price))
-        diff = max_price - min_price
+        # Determine the absolute highest high and lowest low from the provided series
+        overall_max_price = max(high_prices_list)
+        self.logger.info("Overall Max Price: {}".format(overall_max_price))
+        overall_min_price = min(low_prices_list)
+        self.logger.info("Overall Min Price: {}".format(overall_min_price))
+
+        if overall_max_price == overall_min_price:
+            self.logger.warning("Max price and min price are the same. Cannot calculate Fibonacci levels.")
+            return []
+
+        diff = overall_max_price - overall_min_price
         self.logger.info("Diff: {}".format(diff))
-        fib_levels_prices = [min_price + level * diff for level in self.fib_levels]
+        # Ensure levels are calculated from min_price up for retracements from a low,
+        # or from max_price down for retracements from a high.
+        # Standard approach is to find range and apply ratios.
+        # If current price is in an uptrend (min_price is the start), levels are above min_price.
+        # If current price is in a downtrend (max_price is the start), levels are below max_price.
+        # The provided logic `min_price + level * diff` assumes an uptrend for retracement levels.
+        # For a more general approach, one might need to detect trend first or define levels from both ends.
+        # Sticking to the provided calculation logic:
+        fib_levels_prices = [overall_min_price + level * diff for level in self.fib_levels]
         self.logger.info("Fibonacci Level Prices: {}".format(", ".join(map(str, fib_levels_prices))))
 
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
         self.logger.info("Fibonacci retracement levels calculation finished in {:0.4f} seconds".format(elapsed_time))
 
-        return fib_levels_prices
+        return fib_levels_prices # This is a list of calculated price levels
     
-    def decide_signal(self, **data):
-        fib_levels = data.get("FibonacciRetracements", {}).get("calculations", [])
-        closing_prices = data.get("closing_prices", [])
+    def decide_signal(self, current_closing_price=None, **cv_data): # cv_data is the output from calculate()
+        if current_closing_price is None:
+            self.logger.error("Current closing price not provided. Cannot decide signal.")
+            return Constants.UNKNOWN_SIGNAL
+
+        fib_levels_prices = cv_data.get("calculations") # Expects main.py to pass the list under this key
+
+        if not fib_levels_prices: # Checks if list is None or empty
+            self.logger.error("Fibonacci levels data is missing or empty. Cannot decide signal.")
+            return Constants.UNKNOWN_SIGNAL
         
-        if not fib_levels or not closing_prices:
-            self.logger.error("Missing required data. Cannot decide signal.")
-            return None
-        
-        self.logger.info("Deciding Fibonacci Retracements buy/sell/hold signal...")
-        last_price = closing_prices[-1]
+        last_price = current_closing_price # Use the passed current_closing_price
         self.logger.info("Last Price: {}".format(last_price))
 
-        fib_levels_dict = dict(zip(self.fib_levels, fib_levels))
+        # fib_levels_map maps the configured ratio (e.g. 0.382) to the calculated price level
+        # self.fib_levels should be used here as it's what the user configured (or default in __init__)
+        if len(self.fib_levels) != len(fib_levels_prices):
+            self.logger.error("Mismatch between configured fib_levels and calculated fib_level_prices. Cannot accurately map.")
+            return Constants.UNKNOWN_SIGNAL
+         
+        fib_levels_map = dict(zip(self.fib_levels, fib_levels_prices))
 
-        fib38 = fib_levels_dict.get(0.382)
-        self.logger.info("fib38: {}".format(fib38))
-        #   fib50 = fib_levels_dict.get(50.0)
-        fib61 = fib_levels_dict.get(0.618)
-        self.logger.info("fib61: {}".format(fib61))
+        fib38_price = fib_levels_map.get(0.382)
+        fib61_price = fib_levels_map.get(0.618)
 
-        if last_price <= fib38:
+        if fib38_price is None or fib61_price is None:
+            self.logger.warning("0.382 or 0.618 level not found in configured fib_levels. Adjust config or signal logic. Holding.")
+            return Constants.HOLD_SIGNAL # Changed from UNKNOWN to HOLD
+
+        signal = Constants.HOLD_SIGNAL # Default to HOLD
+        if last_price <= fib38_price:
             signal = Constants.BUY_SIGNAL
-        elif last_price >= fib61:
+        elif last_price >= fib61_price: # And price > fib38 (implicit, as it didn't trigger BUY)
             signal = Constants.SELL_SIGNAL
-        else:
-            signal = Constants.HOLD_SIGNAL
-
+         
         self.logger.info("Signal detected: {}".format(signal))
         return signal
 

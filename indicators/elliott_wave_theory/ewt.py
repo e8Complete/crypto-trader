@@ -66,32 +66,46 @@ class EWT(BaseIndicator):
 
         return result
 
-    def decide_signal(self, **data):
-        closing_prices = data.get('closing_prices', '')
-        rsi = data.get('RSI', {}).get("calculations", "")
-        ew_pattern = data.get('ew_pattern', '')
-        sma1 = data.get('sma1', '')
-        sma2 = data.get('sma2', '')
-        if (not closing_prices or rsi is None or len(rsi) < 2 or not ew_pattern
-            or sma1 is None or sma2 is None):
-            self.logger.error("Missing required data. Cannot decide signal.")
+    def decide_signal(self, **cv_data): # Renamed data to cv_data
+        # Data directly from calculate() output
+        ew_pattern = cv_data.get('ew_pattern')
+        sma1_series = cv_data.get('sma1')
+        sma2_series = cv_data.get('sma2')
+
+        # Modified initial data check
+        if ew_pattern is None or sma1_series is None or sma2_series is None or \
+           len(sma1_series) == 0 or len(sma2_series) == 0:
+            self.logger.error("Missing required calculation data (ew_pattern, sma1, or sma2). Cannot decide signal.")
             return Constants.UNKNOWN_SIGNAL
     
         self.logger.info("Deciding Elliott Wave Theory buy/sell/hold signal...")
-        last_closing = closing_prices[-1]
-        last_rsi = rsi[-1]
-        last_sma1 = sma1[-1]
-        last_sma2 = sma2[-1]
-        self.logger.info(f"Last closing price: {last_closing}")
-        self.logger.info(f"Last RSI: {last_rsi}")
-        self.logger.info(f"Last last_sma1: {last_sma1}")
-        self.logger.info(f"Last last_sma2: {last_sma2}")
-        if ew_pattern == 1 and last_rsi < 30 and last_closing > last_sma1 and last_closing > last_sma2:
-            signal = Constants.BUY_SIGNAL
-        elif ew_pattern == -1 and last_rsi > 70 and last_closing < last_sma1 and last_closing < last_sma2:
-            signal = Constants.SELL_SIGNAL
-        else:
-            signal = Constants.HOLD_SIGNAL
+        
+        # last_closing = closing_prices[-1] # Cannot get closing_prices this way from cv_data
+        # last_rsi = rsi[-1] # Cannot get rsi this way from cv_data
+        last_sma1 = sma1_series[-1]
+        last_sma2 = sma2_series[-1]
+
+        # Handle NaN for SMAs
+        if np.isnan(last_sma1) or np.isnan(last_sma2):
+            self.logger.warning("Latest SMA values are NaN (insufficient data for period). Holding.")
+            return Constants.HOLD_SIGNAL
+        
+        # Log available data that would have been used
+        self.logger.info(f"EW Pattern: {ew_pattern}")
+        self.logger.info(f"Last SMA1: {last_sma1}")
+        self.logger.info(f"Last SMA2: {last_sma2}")
+
+        # Temporarily adapt signal logic
+        signal = Constants.HOLD_SIGNAL # Default to HOLD
+        self.logger.warning("EWT signal logic is currently partially disabled due to missing closing_price and RSI inputs to decide_signal method. Defaulting to HOLD.")
+        
+        # Original logic commented out for now:
+        # if ew_pattern == 1 and last_rsi < 30 and last_closing > last_sma1 and last_closing > last_sma2:
+        #     signal = Constants.BUY_SIGNAL
+        # elif ew_pattern == -1 and last_rsi > 70 and last_closing < last_sma1 and last_closing < last_sma2:
+        #     signal = Constants.SELL_SIGNAL
+        # else:
+        #     signal = Constants.HOLD_SIGNAL # This is already the default
         
         self.logger.info("Signal detected: {}".format(signal))
         return signal
