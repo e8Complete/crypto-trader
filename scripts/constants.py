@@ -49,3 +49,9 @@ class Constants():
         "BTCUSDT": ["BTC", "Bitcoin", "Crypto", "Crypto currency"]
         # TODO: Add more topics for each symbol here
     }
+
+    DEFAULT_CONFIG_FILENAME = "config.yaml"
+
+    # Status/Error messages
+    STATUS_ERROR_FETCHING_NEWS = "Error fetching news"
+    SIGNAL_PROCESSING_ERROR = "Error" # Used for indicator signal or sentiment score when an error occurs

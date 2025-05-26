@@ -11,8 +11,8 @@ indicators:  # Names of indicators should match the name of the respective class
   - name: "BollingerBands"
     enable: true
     parameters:
-      window_size: # You need to specify these based on your data
-      num_std: # You need to specify these based on your data
+      window_size: 20 # TODO: Specify your desired window size
+      num_std: 2 # TODO: Specify your desired number of standard deviations
   - name: "Triangle"
     enable: true
     parameters:
@@ -29,7 +29,7 @@ indicators:  # Names of indicators should match the name of the respective class
   - name: "FibonacciRetracements"
     enable: true
     parameters:
-      fib_levels: # You need to specify these based on your data
+      fib_levels: [0.236, 0.382, 0.5, 0.618, 0.786] # TODO: Specify your desired Fibonacci levels
   - name: "HeadAndShoulders"
     enable: true
   - name: "IchimokuCloud"
@@ -43,7 +43,7 @@ indicators:  # Names of indicators should match the name of the respective class
     enable: true
     parameters:
       timeperiod: 14
-  - name: "OrderBookAnalysis"
+  - name: "OBA"
     enable: true
     parameters:
       depth: 10 # You may want to adjust this
@@ -58,18 +58,11 @@ indicators:  # Names of indicators should match the name of the respective class
       k_period: 14
       d_period: 3
       threshold: 20
-  - name: "SupertrendIndicator"
+  - name: "Supertrend"
     enable: true
     parameters:
       lookback: 10
       multiplier: 3
-  - name: "Triangle"
-    enable: true
-    parameters:
-      interval: "1d"
-      k_period: 14
-      d_period: 3
-      threshold: 20
   - name: "VWAP"
     enable: true
     parameters:

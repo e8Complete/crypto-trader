@@ -20,7 +20,7 @@ class Reddit:
         self.logger.debug("Timestamp: {}".format(timestamp))
         self.logger.debug("Is test: {}".format(is_test))
         reddit_client_id = args.reddit_client_id if args.reddit_client_id else os.environ.get('REDDIT_CLIENT_ID')
-        reddit_client_secret = args.reddit_client_secret if args.reddit_client_secret else os.environ.get('REDDOT_CLIENT_SECRET')
+        reddit_client_secret = args.reddit_client_secret if args.reddit_client_secret else os.environ.get('REDDIT_CLIENT_SECRET')
         reddit_username = args.reddit_username if args.reddit_username else os.environ.get('REDDIT_USERNAME')
         reddit_password = args.reddit_password if args.reddit_password else os.environ.get('REDDIT_PASSWORD')
         reddit_user_agent = args.reddit_user_agent if args.reddit_user_agent else os.environ.get('REDDIT_USER_AGENT')
