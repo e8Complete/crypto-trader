@@ -10,6 +10,8 @@ from indicators.base_indicator import BaseIndicator
 from scripts.constants import Constants
 from scripts.utils import get_timestamp
 from scripts.logger import setup_logger
+import matplotlib.pyplot as plt
+# import pandas as pd # Not strictly needed here if prices_df is used as passed
 
 
 class ADX(BaseIndicator):
@@ -23,11 +25,25 @@ class ADX(BaseIndicator):
         self.logger.debug("Timestamp: {}".format(timestamp))
         self.logger.debug("Is test: {}".format(is_test))
         self.timeperiod = timeperiod
+        self.logger.info(f"Initialized ADX with timeperiod: {self.timeperiod}")
 
     def calculate(self, **data):
         high_prices = data.get('high_prices')
         low_prices = data.get('low_prices')
         closing_prices = data.get('closing_prices')
+
+        if high_prices is None or len(high_prices) == 0:
+            self.logger.error("High prices data is missing or empty.")
+            return None
+        if low_prices is None or len(low_prices) == 0:
+            self.logger.error("Low prices data is missing or empty.")
+            return None
+        if closing_prices is None or len(closing_prices) == 0:
+            self.logger.error("Closing prices data is missing or empty.")
+            return None
+            
+        self.logger.debug(f"Input data lengths: high_prices={len(high_prices)}, low_prices={len(low_prices)}, closing_prices={len(closing_prices)}")
+
         np_high_prices = np.array(high_prices)
         np_low_prices = np.array(low_prices)
         np_close_prices = np.array(closing_prices)
@@ -43,7 +59,22 @@ class ADX(BaseIndicator):
             return None
 
         if adx is not None:
-            self.logger.info("ADX: {}".format(adx))
+            # Log a summary of the ADX array to avoid overly long messages
+            if len(adx) > 6: # TA-Lib ADX output might have NaNs at the start
+                # Filter out NaNs for logging, as they don't format well with .2f
+                adx_valid = adx[~np.isnan(adx)]
+                if len(adx_valid) > 6:
+                    self.logger.info(f"Calculated ADX (length {len(adx_valid)}): First 3=[{', '.join(f'{x:.2f}' for x in adx_valid[:3])}], Last 3=[{', '.join(f'{x:.2f}' for x in adx_valid[-3:])}]")
+                elif len(adx_valid) > 0:
+                    self.logger.info(f"Calculated ADX (length {len(adx_valid)}): Values=[{', '.join(f'{x:.2f}' for x in adx_valid)}]")
+                else:
+                    self.logger.info("Calculated ADX: All values are NaN after filtering.")
+            elif len(adx) > 0 : # For very short arrays (mostly NaNs from TA-Lib)
+                 self.logger.info(f"Calculated ADX (length {len(adx)}): Values (may include NaNs)=[{', '.join(f'{x:.2f}' if not np.isnan(x) else 'NaN' for x in adx)}]")
+            else:
+                self.logger.info("Calculated ADX: Result is an empty array.")
+        else:
+            self.logger.info("Calculated ADX: Result is None (calculation failed or input error).")
 
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
@@ -58,10 +89,14 @@ class ADX(BaseIndicator):
         if adx_series is None or len(adx_series) < 2:
             self.logger.error("Missing required ADX calculation data or data too short. Cannot decide signal.")
             return Constants.UNKNOWN_SIGNAL
+        
+        self.logger.debug(f"ADX series for decision (last 5 values): {adx_series[-5:] if adx_series is not None and len(adx_series) >= 5 else adx_series}")
 
         self.logger.info("Deciding ADX buy/sell/hold signal...")
         last_adx = adx_series[-1]
         prev_adx = adx_series[-2] # Store previous ADX value for clarity
+        
+        self.logger.info(f"Making signal decision based on: last_adx={last_adx:.2f}, prev_adx={prev_adx:.2f}")
 
         if last_adx > 25:
             # Condition for BUY: ADX crosses above 25
@@ -80,6 +115,58 @@ class ADX(BaseIndicator):
         self.logger.info(f"Signal detected: {signal}")
         return signal
 
+    def plot(self, calculated_data, prices_df, output_path_prefix):
+        """
+        Plots the ADX indicator values.
+        calculated_data: The ADX series (numpy array) from the calculate method.
+        prices_df: Pandas DataFrame with a 'timestamp' column for the x-axis.
+        output_path_prefix: Prefix for the output plot file name.
+        """
+        try:
+            adx_series = calculated_data # This is the output from self.calculate()
+            
+            if adx_series is None or len(adx_series) == 0:
+                self.logger.warning("ADX data is None or empty, skipping plot generation.")
+                return
+
+            if prices_df is None or 'timestamp' not in prices_df.columns or len(prices_df) != len(adx_series):
+                self.logger.warning(f"Prices DataFrame is invalid or length mismatch (ADX: {len(adx_series)}, Price: {len(prices_df) if prices_df is not None else 'None'}). Skipping ADX plot.")
+                # As a fallback, if timestamps are missing, we could plot against sequence numbers,
+                # but it's less informative. For now, require timestamps.
+                # If price_df has more data than adx_series (due to TA-Lib NaNs at start of adx_series),
+                # align them by taking the tail of prices_df.
+                # However, TA-Lib functions usually return arrays of the same length as input, padded with NaNs.
+                # So, prices_df and adx_series should ideally have same length.
+                # Let's assume they are of same length for now.
+                # A more robust solution would align based on non-NaN ADX values and corresponding timestamps.
+                return
+
+            fig, ax = plt.subplots(figsize=(12, 6), dpi=100)
+            
+            # Ensure timestamps are in a plottable format if coming directly from klines
+            # If prices_df['timestamp'] is already datetime objects, this is fine.
+            # If they are strings or milliseconds, they need conversion.
+            # Assuming prices_df['timestamp'] is compatible with matplotlib plotting.
+            timestamps = prices_df['timestamp']
+
+            ax.plot(timestamps, adx_series, label='ADX', color='blue')
+            ax.axhline(25, color='red', linestyle='--', linewidth=0.7, label='ADX Threshold (25)')
+            
+            ax.set_title(f'Average Directional Index (ADX) - Timeperiod: {self.timeperiod}')
+            ax.set_xlabel('Timestamp')
+            ax.set_ylabel('ADX Value')
+            ax.legend()
+            ax.grid(True)
+            
+            plot_filename = f"{output_path_prefix}adx_plot.png"
+            plt.savefig(plot_filename)
+            plt.close(fig) # Release memory
+            self.logger.info(f"ADX plot saved to {plot_filename}")
+
+        except Exception as e:
+            self.logger.error(f"Error generating ADX plot: {e}", exc_info=True)
+            if 'fig' in locals() and fig is not None: # Ensure fig exists before trying to close if error occurs mid-plot
+                plt.close(fig)
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Use Average Directional Index (ADX) to determine buy or sell signals")

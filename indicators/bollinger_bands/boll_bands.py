@@ -9,9 +9,10 @@ from indicators.base_indicator import BaseIndicator
 from scripts.constants import Constants
 from scripts.utils import get_timestamp
 from scripts.logger import setup_logger
+import matplotlib.pyplot as plt
 
 
-class BollingerBands(BaseIndicator):
+class BollingerBands(BaseIndicator): # This is the first occurrence, will be ignored by targeting the second one if it exists.
     def __init__(self,  window_size=20, num_std=2, is_test=True,
                  timestamp=get_timestamp(precision="day", separator="-")):
         log_name = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
@@ -21,9 +22,10 @@ class BollingerBands(BaseIndicator):
                                    )
         self.logger.debug("Timestamp: {}".format(timestamp))
         self.logger.debug("Is test: {}".format(is_test))
-import talib # Ensure talib is imported
+# talib import is already here. Ensure matplotlib.pyplot is added if not part of first block.
+# Given the structure, the first SEARCH block for adding plt import should handle it.
 
-class BollingerBands(BaseIndicator):
+class BollingerBands(BaseIndicator): # This is the targeted class definition
     def __init__(self,  window_size=20, num_std=2, is_test=True,
                  timestamp=get_timestamp(precision="day", separator="-")):
         log_name = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
@@ -31,10 +33,11 @@ class BollingerBands(BaseIndicator):
                                    is_test=is_test,
                                    timestamp=timestamp,
                                    )
-        self.logger.debug("Timestamp: {}".format(timestamp))
-        self.logger.debug("Is test: {}".format(is_test))
+        self.logger.debug("Timestamp: {}".format(timestamp)) # This line is part of the context
+        self.logger.debug("Is test: {}".format(is_test)) # This line is part of the context
         self.window_size = window_size
         self.num_std = num_std
+        self.logger.info(f"Initialized BollingerBands with window_size: {self.window_size}, num_std: {self.num_std}")
 
     def calculate(self, **data):
         closing_prices = data.get('closing_prices')
@@ -43,6 +46,7 @@ class BollingerBands(BaseIndicator):
             return {"upper_band": None, "middle_band": None, "lower_band": None}
 
         np_closing_prices = np.array(closing_prices)
+        self.logger.debug(f"Input closing_prices length: {len(np_closing_prices)}")
         if len(np_closing_prices) < self.window_size:
             self.logger.warning("Not enough data points to calculate Bollinger Bands accurately for window size {}. Data length: {}".format(self.window_size, len(np_closing_prices)))
             return {"upper_band": None, "middle_band": None, "lower_band": None} 
@@ -65,6 +69,30 @@ class BollingerBands(BaseIndicator):
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
         self.logger.info("Bollinger Bands TA-Lib calculation finished in {:0.4f} seconds".format(elapsed_time))
+
+        if upper is not None and middle is not None and lower is not None:
+            # Helper to create summary string for a band array
+            def summarize_band(band_name, band_array):
+                if len(band_array) > 6:
+                    # Filter out NaNs for logging as they don't format well with .2f
+                    valid_values = band_array[~np.isnan(band_array)]
+                    if len(valid_values) > 6:
+                        return f"{band_name} (len {len(valid_values)}): First 3=[{', '.join(f'{x:.2f}' for x in valid_values[:3])}], Last 3=[{', '.join(f'{x:.2f}' for x in valid_values[-3:])}]"
+                    elif len(valid_values) > 0:
+                        return f"{band_name} (len {len(valid_values)}): Values=[{', '.join(f'{x:.2f}' for x in valid_values)}]"
+                    else:
+                        return f"{band_name}: All values are NaN after filtering."
+                elif len(band_array) > 0: # For very short arrays
+                    return f"{band_name} (len {len(band_array)}): Values=[{', '.join(f'{x:.2f}' if not np.isnan(x) else 'NaN' for x in band_array)}]"
+                else:
+                    return f"{band_name}: Result is an empty array."
+
+            self.logger.info("Calculated Bands:")
+            self.logger.info(summarize_band("Upper", upper))
+            self.logger.info(summarize_band("Middle", middle))
+            self.logger.info(summarize_band("Lower", lower))
+        else:
+            self.logger.info("Calculated Bollinger Bands: Result contains None (calculation failed or input error).")
 
         return {"upper_band": upper, "middle_band": middle, "lower_band": lower}
 
@@ -90,6 +118,8 @@ class BollingerBands(BaseIndicator):
         if np.isnan(latest_upper_band) or np.isnan(latest_lower_band):
             self.logger.warning("Latest Bollinger Band values are NaN (insufficient data for period). Holding.")
             return Constants.HOLD_SIGNAL
+        
+        self.logger.info(f"Making signal decision based on: current_closing_price={current_closing_price:.2f}, latest_upper_band={latest_upper_band:.2f}, latest_lower_band={latest_lower_band:.2f}")
 
         signal = Constants.HOLD_SIGNAL # Default to hold
         if current_closing_price < latest_lower_band:
@@ -103,6 +133,74 @@ class BollingerBands(BaseIndicator):
             
         self.logger.info("Signal detected: {}".format(signal))
         return signal
+
+    def plot(self, calculated_data, prices_df, output_path_prefix):
+        """
+        Plots the Bollinger Bands along with the closing prices.
+        calculated_data: Dict containing 'upper_band', 'middle_band', 'lower_band' numpy arrays.
+        prices_df: Pandas DataFrame with 'timestamp' and 'close' columns.
+        output_path_prefix: Prefix for the output plot file name.
+        """
+        try:
+            upper_band = calculated_data.get('upper_band')
+            middle_band = calculated_data.get('middle_band')
+            lower_band = calculated_data.get('lower_band')
+            
+            if upper_band is None or middle_band is None or lower_band is None or \
+               len(upper_band) == 0 or len(middle_band) == 0 or len(lower_band) == 0:
+                self.logger.warning("Bollinger Bands data is None or empty, skipping plot generation.")
+                return
+
+            if prices_df is None or 'timestamp' not in prices_df.columns or 'close' not in prices_df.columns:
+                self.logger.warning("Prices DataFrame is invalid or missing 'timestamp'/'close' columns. Skipping Bollinger Bands plot.")
+                return
+            
+            # Align data: TA-Lib functions return arrays same length as input.
+            # prices_df['close'] should align with band arrays.
+            # If klines had more data initially than used for BB calc (due to window warmup),
+            # we might need to align. For now, assume direct alignment.
+            if len(prices_df) != len(upper_band):
+                self.logger.warning(f"Length mismatch: Price data ({len(prices_df)}) vs BBands data ({len(upper_band)}). Trying to align by taking tail of price data if longer.")
+                # Attempt to align if prices_df is longer (e.g. original klines) 
+                # and bands have NaNs at the start from TA-Lib.
+                # This assumes band arrays are same length as each other.
+                if len(prices_df) > len(upper_band):
+                     prices_df_aligned = prices_df.iloc[-len(upper_band):].copy() # Use .copy() to avoid SettingWithCopyWarning
+                else: # If price data is shorter or equal, or alignment is complex, skip plot for safety.
+                     self.logger.error("Cannot reliably align price data with BBands data for plotting. Skipping.")
+                     return
+            else:
+                prices_df_aligned = prices_df.copy()
+
+
+            timestamps = prices_df_aligned['timestamp']
+            closing_prices = prices_df_aligned['close']
+
+            fig, ax = plt.subplots(figsize=(12, 6), dpi=100)
+            
+            ax.plot(timestamps, closing_prices, label='Close Price', color='black', alpha=0.7)
+            ax.plot(timestamps, upper_band, label='Upper Band', color='red', linestyle='--')
+            ax.plot(timestamps, middle_band, label='Middle Band (SMA)', color='blue', linestyle='-.')
+            ax.plot(timestamps, lower_band, label='Lower Band', color='green', linestyle='--')
+            
+            # Fill between bands (optional, can be performance heavy for very large datasets)
+            # ax.fill_between(timestamps, lower_band, upper_band, color='gray', alpha=0.1)
+
+            ax.set_title(f'Bollinger Bands (Window: {self.window_size}, StdDev: {self.num_std})')
+            ax.set_xlabel('Timestamp')
+            ax.set_ylabel('Price')
+            ax.legend()
+            ax.grid(True)
+            
+            plot_filename = f"{output_path_prefix}bollingerbands_plot.png"
+            plt.savefig(plot_filename)
+            plt.close(fig) # Release memory
+            self.logger.info(f"Bollinger Bands plot saved to {plot_filename}")
+
+        except Exception as e:
+            self.logger.error(f"Error generating Bollinger Bands plot: {e}", exc_info=True)
+            if 'fig' in locals() and fig is not None:
+                plt.close(fig)
 
 
 if __name__ == "__main__":
